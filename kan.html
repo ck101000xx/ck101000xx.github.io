@@ -1,0 +1,62 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.2/rollups/aes.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/mustache.js/0.8.1/mustache.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/vue/0.10.6/vue.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <input v-model="pass" type="password" />
+      <ul>
+        <li v-repeat="accounts" v-component="account" v-with="pass: pass">
+          <a href="{{ url | swfPage }}" v-text="name"></a>
+        </li>
+      </ul>
+    </div>
+    <script>
+      Vue.filter("swfPage", (function() {
+        var template = "";
+        $.ajax({
+          url: "flash.mst",
+          success: function(result) {
+            template = result;
+          },
+          async:false
+        });
+        return function(src) {
+          return "data:text/html;charset=utf-8," + encodeURIComponent(Mustache.render(template, {src: src}));
+        }
+      }()));
+      Vue.component("account", {
+        computed: {
+          url: function () {
+            var result;
+            try {
+              var params = CryptoJS.lib.CipherParams.create({
+                ciphertext: CryptoJS.enc.Base64.parse(this.encrypted.ciphertext),
+                iv: CryptoJS.enc.Hex.parse(this.encrypted.iv),
+                salt: CryptoJS.enc.Hex.parse(this.encrypted.salt)
+              });
+              result = CryptoJS.AES.decrypt(params, this.pass).toString(CryptoJS.enc.Utf8);
+            } catch(e) {
+            }
+            if (!result) result = "";
+            return result;
+          }
+        }
+      });
+      var app = new Vue({
+        el: "#app",
+        data: {
+          pass: "",
+          accounts: []
+        }
+      });
+      $.getJSON("accounts.json", function(accounts) {
+        app.accounts = accounts;
+      });
+    </script>
+  </body>
+</html>
